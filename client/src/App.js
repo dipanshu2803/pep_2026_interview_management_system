@@ -11,12 +11,16 @@ import DashboardLayout from "./components/DashboardLayout";
 
 // Auth
 import Login from "./pages/Auth/Login";
+import Signup from "./pages/Auth/Signup";
+import ForgotPassword from "./pages/Auth/ForgotPassword";
 
 // User pages
 import UserDashboard from "./pages/User/UserDashboard";
 import ScheduleInterview from "./pages/User/ScheduleInterview";
 import MyInterviews from "./pages/User/MyInterviews";
+import InterviewDetail from "./pages/User/InterviewDetail";
 import Profile from "./pages/User/Profile";
+import Notifications from "./pages/User/Notifications";
 
 // Admin pages
 import ManageInterviews from "./pages/Admin/ManageInterviews";
@@ -30,6 +34,8 @@ function App() {
       <Routes>
         {/* Auth routes */}
         <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
 
         {/* User routes (with dashboard layout) */}
         <Route
@@ -53,6 +59,22 @@ function App() {
           element={
             <DashboardLayout>
               <MyInterviews />
+            </DashboardLayout>
+          }
+        />
+        <Route
+          path="/user/interviews/:id"
+          element={
+            <DashboardLayout>
+              <InterviewDetail />
+            </DashboardLayout>
+          }
+        />
+        <Route
+          path="/user/notifications"
+          element={
+            <DashboardLayout>
+              <Notifications />
             </DashboardLayout>
           }
         />
