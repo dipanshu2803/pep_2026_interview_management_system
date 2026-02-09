@@ -1,75 +1,177 @@
-import React from "react";
+import React, { useState, useMemo } from "react";
+import { mockInterviewers } from "../../data/mockInterviewers";
 
-const mockAdminInterviews = [
+const initialInterviews = [
   {
     id: "#INT-1024",
     candidate: "Aarav Sharma",
     role: "Full Stack Engineer",
-    date: "Today, 2:00 PM",
+    company: "Tech Corp",
+    interviewerId: "int-1",
+    date: "2025-02-06",
+    time: "2:00 PM",
     status: "Scheduled",
   },
   {
     id: "#INT-1023",
     candidate: "Neha Patel",
     role: "Data Analyst",
-    date: "Today, 4:30 PM",
+    company: "Data Solutions",
+    interviewerId: "int-2",
+    date: "2025-02-06",
+    time: "4:30 PM",
     status: "Pending feedback",
   },
   {
     id: "#INT-1022",
     candidate: "Rohan Gupta",
     role: "DevOps Engineer",
-    date: "Yesterday",
+    company: "CloudTech",
+    interviewerId: "int-3",
+    date: "2025-02-05",
+    time: "11:00 AM",
     status: "Completed",
   },
+];
+
+const STATUS_OPTIONS = [
+  "Scheduled",
+  "Pending feedback",
+  "Completed",
+  "Cancelled",
 ];
 
 const statusClasses = {
   Scheduled: "bg-blue-50 text-blue-700",
   "Pending feedback": "bg-amber-50 text-amber-700",
   Completed: "bg-emerald-50 text-emerald-700",
+  Cancelled: "bg-red-50 text-red-700",
 };
 
 const ManageInterviews = () => {
+  const [interviews, setInterviews] = useState(initialInterviews);
+  const [statusFilter, setStatusFilter] = useState("");
+  const [roleFilter, setRoleFilter] = useState("");
+  const [editing, setEditing] = useState(null);
+  const [isNew, setIsNew] = useState(false);
+  const [cancelId, setCancelId] = useState(null);
+
+  const filteredInterviews = useMemo(() => {
+    return interviews.filter((i) => {
+      if (statusFilter && i.status !== statusFilter) return false;
+      if (roleFilter && !i.role.toLowerCase().includes(roleFilter.toLowerCase()))
+        return false;
+      return true;
+    });
+  }, [interviews, statusFilter, roleFilter]);
+
+  const interviewerName = (id) =>
+    mockInterviewers.find((int) => int.id === id)?.fullName || "—";
+
+  const openNew = () => {
+    setIsNew(true);
+    setEditing({
+      id: `#INT-${Math.floor(1000 + Math.random() * 9000)}`,
+      candidate: "",
+      role: "",
+      company: "",
+      interviewerId: mockInterviewers[0]?.id || "",
+      date: "",
+      time: "",
+      status: "Scheduled",
+    });
+  };
+
+  const openEdit = (row) => {
+    setIsNew(false);
+    setEditing({ ...row });
+  };
+
+  const saveEditing = () => {
+    if (!editing.candidate || !editing.role || !editing.company || !editing.date || !editing.time) {
+      return;
+    }
+    // Simple conflict warning: same interviewer, same date & time
+    const conflict = interviews.find(
+      (i) =>
+        i.id !== editing.id &&
+        i.interviewerId === editing.interviewerId &&
+        i.date === editing.date &&
+        i.time === editing.time &&
+        i.status === "Scheduled"
+    );
+
+    if (conflict) {
+      // We still save, but admin is visually warned via status text
+      // In a real app we could require an explicit 'override' confirmation
+      console.warn("Conflict overridden with", conflict.id);
+    }
+
+    setInterviews((prev) => {
+      const exists = prev.some((i) => i.id === editing.id);
+      if (exists) {
+        return prev.map((i) => (i.id === editing.id ? editing : i));
+      }
+      return [editing, ...prev];
+    });
+    setEditing(null);
+    setIsNew(false);
+  };
+
+  const confirmCancel = () => {
+    if (!cancelId) return;
+    setInterviews((prev) =>
+      prev.map((i) =>
+        i.id === cancelId ? { ...i, status: "Cancelled" } : i
+      )
+    );
+    setCancelId(null);
+  };
+
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-semibold text-gray-900">
-          Admin – Manage Interviews
-        </h2>
-        <p className="text-sm text-gray-600">
-          Monitor all interviews across the organization, triage pending items,
-          and keep the pipeline moving.
-        </p>
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-semibold text-gray-900">
+            Admin – Interview Scheduling
+          </h2>
+          <p className="text-sm text-gray-600">
+            Schedule interviews, assign interviewers, reschedule or cancel, and handle conflicts.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={openNew}
+          className="self-start md:self-auto inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium bg-green-600 text-white hover:bg-green-700"
+        >
+          Schedule interview
+        </button>
       </div>
 
-      {/* Admin overview cards */}
+      {/* Summary cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
           <p className="text-xs font-medium text-gray-500 uppercase">
-            Interviews today
+            Total interviews
           </p>
-          <p className="mt-2 text-3xl font-semibold text-gray-900">8</p>
-          <p className="mt-1 text-xs text-gray-500">
-            Across all roles and locations.
+          <p className="mt-2 text-3xl font-semibold text-gray-900">
+            {interviews.length}
+          </p>
+        </div>
+        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+          <p className="text-xs font-medium text-gray-500 uppercase">
+            Scheduled
+          </p>
+          <p className="mt-2 text-3xl font-semibold text-blue-600">
+            {interviews.filter((i) => i.status === "Scheduled").length}
           </p>
         </div>
         <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
           <p className="text-xs font-medium text-gray-500 uppercase">
             Pending feedback
           </p>
-          <p className="mt-2 text-3xl font-semibold text-amber-500">3</p>
-          <p className="mt-1 text-xs text-gray-500">
-            Nudge interviewers to complete scorecards.
-          </p>
-        </div>
-        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-          <p className="text-xs font-medium text-gray-500 uppercase">
-            Offers in progress
-          </p>
-          <p className="mt-2 text-3xl font-semibold text-emerald-600">2</p>
-          <p className="mt-1 text-xs text-gray-500">
-            Candidates currently in the offer stage.
+          <p className="mt-2 text-3xl font-semibold text-amber-600">
+            {interviews.filter((i) => i.status === "Pending feedback").length}
           </p>
         </div>
       </div>
@@ -81,21 +183,28 @@ const ManageInterviews = () => {
             Interview queue
           </h3>
           <div className="flex flex-wrap gap-2">
-            <select className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white">
-              <option>All statuses</option>
-              <option>Scheduled</option>
-              <option>Pending feedback</option>
-              <option>Completed</option>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white"
+            >
+              <option value="">All statuses</option>
+              {STATUS_OPTIONS.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
             </select>
-            <select className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white">
-              <option>All roles</option>
-              <option>Engineering</option>
-              <option>Data</option>
-              <option>Design</option>
+            <select
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value)}
+              className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white"
+            >
+              <option value="">All roles</option>
+              <option value="engineer">Engineering</option>
+              <option value="data">Data</option>
+              <option value="devops">DevOps</option>
             </select>
-            <button className="text-xs px-3 py-1 rounded-lg bg-gray-900 text-white">
-              Export CSV
-            </button>
           </div>
         </div>
 
@@ -113,7 +222,10 @@ const ManageInterviews = () => {
                   Role
                 </th>
                 <th className="px-4 py-2 text-xs font-medium text-gray-500">
-                  Date
+                  Interviewer
+                </th>
+                <th className="px-4 py-2 text-xs font-medium text-gray-500">
+                  Date & time
                 </th>
                 <th className="px-4 py-2 text-xs font-medium text-gray-500">
                   Status
@@ -124,7 +236,7 @@ const ManageInterviews = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {mockAdminInterviews.map((row) => (
+              {filteredInterviews.map((row) => (
                 <tr key={row.id}>
                   <td className="px-4 py-2 text-xs text-gray-700">
                     {row.id}
@@ -136,7 +248,10 @@ const ManageInterviews = () => {
                     {row.role}
                   </td>
                   <td className="px-4 py-2 text-xs text-gray-700">
-                    {row.date}
+                    {interviewerName(row.interviewerId)}
+                  </td>
+                  <td className="px-4 py-2 text-xs text-gray-700">
+                    {row.date} at {row.time}
                   </td>
                   <td className="px-4 py-2 text-xs">
                     <span
@@ -148,19 +263,227 @@ const ManageInterviews = () => {
                     </span>
                   </td>
                   <td className="px-4 py-2 text-xs">
-                    <button className="mr-2 text-green-700 hover:text-green-800">
-                      View
+                    <button
+                      type="button"
+                      className="mr-2 text-green-700 hover:text-green-800"
+                      onClick={() => openEdit(row)}
+                    >
+                      Edit
                     </button>
-                    <button className="text-gray-600 hover:text-gray-800">
-                      Reschedule
-                    </button>
+                    {row.status !== "Cancelled" && (
+                      <button
+                        type="button"
+                        className="text-red-600 hover:text-red-800"
+                        onClick={() => setCancelId(row.id)}
+                      >
+                        Cancel
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
+              {filteredInterviews.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={7}
+                    className="px-4 py-4 text-xs text-gray-500 text-center"
+                  >
+                    No interviews for this filter.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
       </div>
+
+      {/* Add/Edit modal */}
+      {editing && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/40 z-40"
+            aria-hidden
+            onClick={() => {
+              setEditing(null);
+              setIsNew(false);
+            }}
+          />
+          <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg bg-white rounded-xl shadow-xl p-6 z-50 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              {isNew ? "Schedule interview" : "Edit interview"}
+            </h3>
+            <div className="space-y-3 text-sm">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Candidate name
+                </label>
+                <input
+                  type="text"
+                  value={editing.candidate}
+                  onChange={(e) =>
+                    setEditing((prev) => ({ ...prev, candidate: e.target.value }))
+                  }
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                  placeholder="Candidate name"
+                />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Role / position
+                  </label>
+                  <input
+                    type="text"
+                    value={editing.role}
+                    onChange={(e) =>
+                      setEditing((prev) => ({ ...prev, role: e.target.value }))
+                    }
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                    placeholder="e.g. Backend Engineer"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Company
+                  </label>
+                  <input
+                    type="text"
+                    value={editing.company}
+                    onChange={(e) =>
+                      setEditing((prev) => ({ ...prev, company: e.target.value }))
+                    }
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                    placeholder="Company name"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Interviewer
+                </label>
+                <select
+                  value={editing.interviewerId}
+                  onChange={(e) =>
+                    setEditing((prev) => ({ ...prev, interviewerId: e.target.value }))
+                  }
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white"
+                >
+                  {mockInterviewers.map((int) => (
+                    <option key={int.id} value={int.id}>
+                      {int.fullName} ({int.email})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Date
+                  </label>
+                  <input
+                    type="date"
+                    value={editing.date}
+                    onChange={(e) =>
+                      setEditing((prev) => ({ ...prev, date: e.target.value }))
+                    }
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Time
+                  </label>
+                  <input
+                    type="text"
+                    value={editing.time}
+                    onChange={(e) =>
+                      setEditing((prev) => ({ ...prev, time: e.target.value }))
+                    }
+                    placeholder="e.g. 3:00 PM"
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Status
+                </label>
+                <select
+                  value={editing.status}
+                  onChange={(e) =>
+                    setEditing((prev) => ({ ...prev, status: e.target.value }))
+                  }
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white"
+                >
+                  {STATUS_OPTIONS.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="mt-6 flex gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setEditing(null);
+                  setIsNew(false);
+                }}
+                className="flex-1 py-2 rounded-lg border border-gray-200 text-gray-700 font-medium text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={saveEditing}
+                className="flex-1 py-2 rounded-lg bg-green-600 text-white font-medium text-sm hover:bg-green-700"
+              >
+                Save
+              </button>
+            </div>
+            {/* Simple conflict note (non-blocking) */}
+            <p className="mt-3 text-xs text-gray-500">
+              If an interviewer already has an interview at this date and time, this
+              change will still be saved (conflict override). In a real system you
+              can require an explicit override confirmation.
+            </p>
+          </div>
+        </>
+      )}
+
+      {/* Cancel confirm */}
+      {cancelId && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/40 z-40"
+            aria-hidden
+            onClick={() => setCancelId(null)}
+          />
+          <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm bg-white rounded-xl shadow-xl p-6 z-50">
+            <h3 className="text-lg font-semibold text-gray-900">Cancel interview?</h3>
+            <p className="text-sm text-gray-500 mt-1">
+              This will mark the interview as cancelled. Candidate and interviewer can be notified.
+            </p>
+            <div className="mt-6 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setCancelId(null)}
+                className="flex-1 py-2 rounded-lg border border-gray-200 text-gray-700 font-medium text-sm"
+              >
+                Keep
+              </button>
+              <button
+                type="button"
+                onClick={confirmCancel}
+                className="flex-1 py-2 rounded-lg bg-red-600 text-white font-medium text-sm hover:bg-red-700"
+              >
+                Cancel interview
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };
