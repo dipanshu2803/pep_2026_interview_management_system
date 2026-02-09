@@ -34,6 +34,9 @@ const Sidebar = () => {
             <NavLink to="/user/interviews" className={linkActive}>
               My Interviews
             </NavLink>
+            <NavLink to="/user/feedback" className={linkActive}>
+              Feedback
+            </NavLink>
             <NavLink to="/user/notifications" className={linkActive}>
               Notifications
             </NavLink>
@@ -45,6 +48,9 @@ const Sidebar = () => {
 
         {isAdmin && (
           <>
+            <NavLink to="/admin/dashboard" className={linkActive}>
+              Dashboard
+            </NavLink>
             <NavLink to="/admin/interviews" className={linkActive}>
               Manage Interviews
             </NavLink>

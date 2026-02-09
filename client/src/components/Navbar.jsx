@@ -1,11 +1,18 @@
 import React, { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { logout } from "../services/authService";
 
 const Navbar = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const isUser = location.pathname.startsWith("/user");
   const [showNotifications, setShowNotifications] = useState(false);
+
+  const isAdmin = location.pathname.startsWith("/admin");
+  const handleLogout = () => {
+    logout();
+    navigate(isAdmin ? "/admin/login" : "/login");
+  };
 
   const unreadCount = 2; // TODO: from context/API
 
@@ -83,7 +90,7 @@ const Navbar = () => {
         </button>
         <button
           type="button"
-          onClick={() => navigate("/login")}
+          onClick={handleLogout}
           className="text-sm font-medium text-white bg-green-600 hover:bg-green-700 px-4 py-1.5 rounded-lg transition-colors"
         >
           Logout
