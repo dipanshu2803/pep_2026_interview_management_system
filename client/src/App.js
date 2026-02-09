@@ -8,11 +8,16 @@ import {
 
 // Layout
 import DashboardLayout from "./components/DashboardLayout";
+import AdminRoute from "./components/AdminRoute";
+
+// Landing
+import Landing from "./pages/Landing";
 
 // Auth
 import Login from "./pages/Auth/Login";
 import Signup from "./pages/Auth/Signup";
 import ForgotPassword from "./pages/Auth/ForgotPassword";
+import ResetPassword from "./pages/Auth/ResetPassword";
 
 // User pages
 import UserDashboard from "./pages/User/UserDashboard";
@@ -21,8 +26,11 @@ import MyInterviews from "./pages/User/MyInterviews";
 import InterviewDetail from "./pages/User/InterviewDetail";
 import Profile from "./pages/User/Profile";
 import Notifications from "./pages/User/Notifications";
+import Feedback from "./pages/User/Feedback";
 
 // Admin pages
+import AdminLogin from "./pages/Admin/AdminLogin";
+import AdminDashboard from "./pages/Admin/AdminDashboard";
 import ManageInterviews from "./pages/Admin/ManageInterviews";
 import ManageUsers from "./pages/Admin/ManageUsers";
 import Reports from "./pages/Admin/Reports";
@@ -32,10 +40,15 @@ function App() {
   return (
     <Router>
       <Routes>
+        {/* Landing */}
+        <Route path="/" element={<Landing />} />
+
         {/* Auth routes */}
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/admin/login" element={<AdminLogin />} />
 
         {/* User routes (with dashboard layout) */}
         <Route
@@ -79,6 +92,14 @@ function App() {
           }
         />
         <Route
+          path="/user/feedback"
+          element={
+            <DashboardLayout>
+              <Feedback />
+            </DashboardLayout>
+          }
+        />
+        <Route
           path="/user/profile"
           element={
             <DashboardLayout>
@@ -87,43 +108,60 @@ function App() {
           }
         />
 
-        {/* Admin routes (with dashboard layout) */}
+        {/* Admin routes (role-protected, dashboard layout) */}
+        <Route
+          path="/admin/dashboard"
+          element={
+            <AdminRoute>
+              <DashboardLayout>
+                <AdminDashboard />
+              </DashboardLayout>
+            </AdminRoute>
+          }
+        />
         <Route
           path="/admin/interviews"
           element={
-            <DashboardLayout>
-              <ManageInterviews />
-            </DashboardLayout>
+            <AdminRoute>
+              <DashboardLayout>
+                <ManageInterviews />
+              </DashboardLayout>
+            </AdminRoute>
           }
         />
         <Route
           path="/admin/users"
           element={
-            <DashboardLayout>
-              <ManageUsers />
-            </DashboardLayout>
+            <AdminRoute>
+              <DashboardLayout>
+                <ManageUsers />
+              </DashboardLayout>
+            </AdminRoute>
           }
         />
         <Route
           path="/admin/reports"
           element={
-            <DashboardLayout>
-              <Reports />
-            </DashboardLayout>
+            <AdminRoute>
+              <DashboardLayout>
+                <Reports />
+              </DashboardLayout>
+            </AdminRoute>
           }
         />
         <Route
           path="/admin/settings"
           element={
-            <DashboardLayout>
-              <Settings />
-            </DashboardLayout>
+            <AdminRoute>
+              <DashboardLayout>
+                <Settings />
+              </DashboardLayout>
+            </AdminRoute>
           }
         />
 
-        {/* Default / fallback */}
-        <Route path="/" element={<Navigate to="/login" replace />} />
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        {/* Fallback */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
   );
