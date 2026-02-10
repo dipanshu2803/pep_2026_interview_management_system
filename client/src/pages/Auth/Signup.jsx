@@ -1,5 +1,11 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { signup } from "../../services/authService";
+
+const ROLES = [
+  { value: "candidate", label: "Candidate" },
+  { value: "interviewer", label: "Interviewer" },
+];
 
 const Signup = () => {
   const navigate = useNavigate();
@@ -8,6 +14,7 @@ const Signup = () => {
     email: "",
     password: "",
     confirmPassword: "",
+    role: "candidate",
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -18,7 +25,7 @@ const Signup = () => {
     setError("");
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (form.password !== form.confirmPassword) {
       setError("Passwords do not match.");
@@ -30,11 +37,23 @@ const Signup = () => {
     }
     setLoading(true);
     setError("");
-    // TODO: call signup API
-    setTimeout(() => {
+    try {
+      const data = await signup(
+        form.fullName,
+        form.email,
+        form.password,
+        form.role
+      );
+      if (data.user.role === "admin") {
+        navigate("/admin/interviews");
+      } else {
+        navigate("/user/dashboard");
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || "Sign up failed. Try again.");
+    } finally {
       setLoading(false);
-      navigate("/login");
-    }, 600);
+    }
   };
 
   return (
@@ -43,7 +62,7 @@ const Signup = () => {
         <div className="text-center space-y-1">
           <h1 className="text-2xl font-semibold text-gray-900">Create account</h1>
           <p className="text-sm text-gray-500">
-            Sign up to schedule and manage your interviews.
+            Sign up as Candidate or Interviewer. Email + password.
           </p>
         </div>
 
@@ -53,6 +72,23 @@ const Signup = () => {
               {error}
             </p>
           )}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              I am a
+            </label>
+            <select
+              name="role"
+              value={form.role}
+              onChange={handleChange}
+              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500"
+            >
+              {ROLES.map((r) => (
+                <option key={r.value} value={r.value}>
+                  {r.label}
+                </option>
+              ))}
+            </select>
+          </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Full name
