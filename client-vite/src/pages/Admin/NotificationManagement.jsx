@@ -1,4 +1,13 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { toast } from "react-toastify";
+import { getAdminUsers, createNotificationForUser } from "../../services/adminService";
+
+const NOTIFICATION_TYPES = [
+  { value: "general", label: "General" },
+  { value: "upcoming", label: "Upcoming" },
+  { value: "rescheduled", label: "Rescheduled" },
+  { value: "cancelled", label: "Cancelled" },
+];
 
 const initialAnnouncements = [
   {
@@ -25,15 +34,31 @@ const initialReminders = [
 ];
 
 const NotificationManagement = () => {
+  const [users, setUsers] = useState([]);
   const [announcements, setAnnouncements] = useState(initialAnnouncements);
   const [reminders, setReminders] = useState(initialReminders);
   const [showCompose, setShowCompose] = useState(false);
+  const [showSendToUser, setShowSendToUser] = useState(false);
+  const [sendToUser, setSendToUser] = useState({
+    userId: "",
+    type: "general",
+    title: "",
+    message: "",
+    link: "",
+  });
+  const [sending, setSending] = useState(false);
   const [compose, setCompose] = useState({
     title: "",
     body: "",
     sendEmail: true,
     sendInApp: true,
   });
+
+  useEffect(() => {
+    getAdminUsers()
+      .then((list) => setUsers(Array.isArray(list) ? list : []))
+      .catch(() => setUsers([]));
+  }, []);
 
   const sendAnnouncement = () => {
     if (!compose.title?.trim()) return;
@@ -50,6 +75,29 @@ const NotificationManagement = () => {
     ]);
     setCompose({ title: "", body: "", sendEmail: true, sendInApp: true });
     setShowCompose(false);
+  };
+
+  const handleSendToUser = async () => {
+    if (!sendToUser.userId || !sendToUser.title?.trim() || !sendToUser.message?.trim()) {
+      toast.error("Select a user and enter title and message.");
+      return;
+    }
+    setSending(true);
+    try {
+      await createNotificationForUser(sendToUser.userId, {
+        type: sendToUser.type,
+        title: sendToUser.title.trim(),
+        message: sendToUser.message.trim(),
+        link: sendToUser.link?.trim() || undefined,
+      });
+      toast.success("Notification sent to user.");
+      setSendToUser({ userId: "", type: "general", title: "", message: "", link: "" });
+      setShowSendToUser(false);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to send notification.");
+    } finally {
+      setSending(false);
+    }
   };
 
   const toggleReminder = (id) => {
@@ -75,14 +123,115 @@ const NotificationManagement = () => {
             Send announcements, email / in-app notifications, and configure reminder scheduler.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => setShowCompose(true)}
-          className="self-start md:self-auto inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium bg-green-600 text-white hover:bg-green-700"
-        >
-          Send announcement
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setShowCompose(true)}
+            className="inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium bg-green-600 text-white hover:bg-green-700"
+          >
+            Send announcement
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowSendToUser(true)}
+            className="inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium bg-amber-600 text-white hover:bg-amber-700"
+          >
+            Send to user
+          </button>
+        </div>
       </div>
+
+      {/* Send to individual user modal */}
+      {showSendToUser && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/40 z-40"
+            aria-hidden
+            onClick={() => setShowSendToUser(false)}
+          />
+          <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg bg-white rounded-xl shadow-xl p-6 z-50">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Send notification to user</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              This notification will appear on the user&apos;s Notifications page.
+            </p>
+            <div className="space-y-3 text-sm">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">User</label>
+                <select
+                  value={sendToUser.userId}
+                  onChange={(e) => setSendToUser((p) => ({ ...p, userId: e.target.value }))}
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 bg-white"
+                >
+                  <option value="">Select user</option>
+                  {users.map((u) => (
+                    <option key={u._id} value={u._id}>
+                      {u.fullName} ({u.email})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Type</label>
+                <select
+                  value={sendToUser.type}
+                  onChange={(e) => setSendToUser((p) => ({ ...p, type: e.target.value }))}
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 bg-white"
+                >
+                  {NOTIFICATION_TYPES.map((t) => (
+                    <option key={t.value} value={t.value}>{t.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Title</label>
+                <input
+                  type="text"
+                  value={sendToUser.title}
+                  onChange={(e) => setSendToUser((p) => ({ ...p, title: e.target.value }))}
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                  placeholder="Notification title"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Message</label>
+                <textarea
+                  value={sendToUser.message}
+                  onChange={(e) => setSendToUser((p) => ({ ...p, message: e.target.value }))}
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 min-h-[80px]"
+                  placeholder="Message..."
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Link (optional)</label>
+                <input
+                  type="text"
+                  value={sendToUser.link}
+                  onChange={(e) => setSendToUser((p) => ({ ...p, link: e.target.value }))}
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                  placeholder="e.g. /user/interviews/123"
+                />
+              </div>
+            </div>
+            <div className="mt-6 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setShowSendToUser(false)}
+                className="flex-1 py-2 rounded-lg border border-gray-200 text-gray-700 font-medium text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSendToUser}
+                disabled={sending}
+                className="flex-1 py-2 rounded-lg bg-amber-600 text-white font-medium text-sm hover:bg-amber-700 disabled:opacity-60"
+              >
+                {sending ? "Sending…" : "Send"}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Compose modal */}
       {showCompose && (

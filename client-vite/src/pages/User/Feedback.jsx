@@ -1,19 +1,38 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { getCompletedForFeedback } from "../../data/mockInterviews";
+import { getStoredUser } from "../../services/authService";
+import { getUserInterviews } from "../../services/interviewService";
 
 const resultLabel = (status) =>
-  ({ selected: "Selected", rejected: "Rejected", pending: "Pending" }[status] || status);
+  ({ selected: "Selected", rejected: "Rejected", pending: "Pending", completed: "Completed" }[status] || status);
 
 const resultStyles = {
   selected: "bg-green-50 text-green-700",
   rejected: "bg-red-50 text-red-700",
   pending: "bg-amber-50 text-amber-700",
+  completed: "bg-gray-100 text-gray-700",
 };
 
 const Feedback = () => {
+  const user = getStoredUser();
+  const [interviews, setInterviews] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [viewingId, setViewingId] = useState(null);
-  const completed = getCompletedForFeedback();
+
+  useEffect(() => {
+    if (!user?.id) {
+      setLoading(false);
+      return;
+    }
+    getUserInterviews(user.id)
+      .then((list) => setInterviews(list || []))
+      .catch(() => setInterviews([]))
+      .finally(() => setLoading(false));
+  }, [user?.id]);
+
+  const completed = interviews.filter((i) =>
+    ["selected", "rejected", "pending", "completed"].includes(i.status)
+  );
   const viewing = completed.find((i) => i.id === viewingId);
 
   return (
@@ -26,9 +45,13 @@ const Feedback = () => {
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        {completed.length === 0 ? (
+        {loading ? (
           <div className="p-8 text-center text-gray-500">
-            <p className="text-sm">No completed interviews yet. Feedback will appear here after your interviews are done.</p>
+            <p className="text-sm">Loading…</p>
+          </div>
+        ) : completed.length === 0 ? (
+          <div className="p-8 text-center text-gray-500">
+            <p className="text-sm">No completed interviews yet. Feedback from admin will appear here when shared.</p>
             <Link to="/user/interviews" className="mt-2 inline-block text-sm font-medium text-green-600 hover:text-green-700">
               My Interviews
             </Link>
@@ -67,9 +90,12 @@ const Feedback = () => {
                       {item.outcome && (
                         <p className="text-xs text-gray-500 mt-0.5">{item.outcome}</p>
                       )}
+                      {item.notes && !item.feedback && (
+                        <p className="text-xs text-gray-500 mt-0.5">{item.notes}</p>
+                      )}
                     </td>
                     <td className="px-4 py-3">
-                      {item.feedbackAllowed && item.feedback ? (
+                      {item.feedbackVisibleToCandidate && item.feedback ? (
                         <button
                           type="button"
                           onClick={() => setViewingId(item.id)}

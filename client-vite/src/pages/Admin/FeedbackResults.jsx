@@ -1,10 +1,49 @@
-import React, { useState } from "react";
-import { mockFeedbackList as initialList, RESULT_OPTIONS } from "../../data/mockFeedback";
+import React, { useState, useEffect } from "react";
+import { toast } from "react-toastify";
+import { getAdminInterviews } from "../../services/adminService";
+import { updateInterview, statusToDisplay, displayToStatus, formatDate } from "../../services/interviewService";
+
+const RESULT_OPTIONS = ["Pending feedback", "Selected", "Rejected", "Completed", "Scheduled", "Cancelled"];
+
+function mapInterviewToRow(interview) {
+  const user = interview.user || {};
+  return {
+    id: interview._id,
+    candidateName: user.fullName || "—",
+    candidateId: user._id,
+    interviewerName: interview.interviewer || "—",
+    date: formatDate(interview.date),
+    time: interview.time,
+    result: statusToDisplay[interview.status] || interview.status,
+    resultRaw: interview.status,
+    feedbackText: interview.feedback || "",
+    visibleToCandidate: !!interview.feedbackVisibleToCandidate,
+  };
+}
 
 const FeedbackResults = () => {
-  const [items, setItems] = useState(initialList);
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(null);
+  const [saving, setSaving] = useState(false);
   const [resultFilter, setResultFilter] = useState("");
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const list = await getAdminInterviews();
+      setItems(Array.isArray(list) ? list.map(mapInterviewToRow) : []);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to load interviews");
+      setItems([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
 
   const filtered = resultFilter
     ? items.filter((i) => i.result === resultFilter)
@@ -14,12 +53,23 @@ const FeedbackResults = () => {
     setEditing({ ...row });
   };
 
-  const save = () => {
+  const save = async () => {
     if (!editing) return;
-    setItems((prev) =>
-      prev.map((i) => (i.id === editing.id ? editing : i))
-    );
-    setEditing(null);
+    setSaving(true);
+    try {
+      await updateInterview(editing.id, {
+        feedback: editing.feedbackText || "",
+        feedbackVisibleToCandidate: !!editing.visibleToCandidate,
+        status: displayToStatus[editing.result] !== undefined ? displayToStatus[editing.result] : editing.resultRaw,
+      });
+      toast.success("Feedback saved. User will see it on their Feedback page when visible.");
+      await loadData();
+      setEditing(null);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Save failed");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -32,6 +82,8 @@ const FeedbackResults = () => {
           </p>
         </div>
       </div>
+
+      {loading && <p className="text-sm text-gray-600">Loading…</p>}
 
       <div className="flex flex-wrap gap-2">
         <select
@@ -51,7 +103,7 @@ const FeedbackResults = () => {
           <table className="min-w-full text-left text-sm">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-2 text-xs font-medium text-gray-500">ID</th>
+                <th className="px-4 py-2 text-xs font-medium text-gray-500">Interview</th>
                 <th className="px-4 py-2 text-xs font-medium text-gray-500">Candidate</th>
                 <th className="px-4 py-2 text-xs font-medium text-gray-500">Interviewer</th>
                 <th className="px-4 py-2 text-xs font-medium text-gray-500">Date & time</th>
@@ -63,7 +115,7 @@ const FeedbackResults = () => {
             <tbody className="divide-y divide-gray-100">
               {filtered.map((row) => (
                 <tr key={row.id}>
-                  <td className="px-4 py-2 text-gray-700">{row.id}</td>
+                  <td className="px-4 py-2 text-xs text-gray-500">{String(row.id).slice(-6)}</td>
                   <td className="px-4 py-2 font-medium text-gray-900">{row.candidateName}</td>
                   <td className="px-4 py-2 text-gray-700">{row.interviewerName}</td>
                   <td className="px-4 py-2 text-gray-700">{row.date} at {row.time}</td>
@@ -122,7 +174,7 @@ const FeedbackResults = () => {
             <p className="text-xs text-gray-600 mb-3">{editing.candidateName} · {editing.id}</p>
             <div className="space-y-3 text-sm">
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Result</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Result / status</label>
                 <select
                   value={editing.result}
                   onChange={(e) => setEditing((p) => ({ ...p, result: e.target.value }))}
@@ -150,7 +202,7 @@ const FeedbackResults = () => {
                     setEditing((p) => ({ ...p, visibleToCandidate: e.target.checked }))
                   }
                 />
-                <span className="text-sm">Make feedback visible to candidate</span>
+                <span className="text-sm">Make feedback visible to candidate (shows on user Feedback page)</span>
               </label>
             </div>
             <div className="mt-6 flex gap-2">
@@ -164,9 +216,10 @@ const FeedbackResults = () => {
               <button
                 type="button"
                 onClick={save}
-                className="flex-1 py-2 rounded-lg bg-green-600 text-white font-medium text-sm hover:bg-green-700"
+                disabled={saving}
+                className="flex-1 py-2 rounded-lg bg-green-600 text-white font-medium text-sm hover:bg-green-700 disabled:opacity-60"
               >
-                Save
+                {saving ? "Saving…" : "Save"}
               </button>
             </div>
           </div>
