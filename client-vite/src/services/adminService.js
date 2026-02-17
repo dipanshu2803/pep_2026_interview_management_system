@@ -1,5 +1,17 @@
 import axiosInstance from "../utils/axiosInstance";
 
+/** Admin: create a notification for a specific user. */
+export const createNotificationForUser = async (userId, { type, title, message, link }) => {
+  const { data } = await axiosInstance.post("/admin/notifications", {
+    userId,
+    type,
+    title,
+    message: message || "",
+    link: link || undefined,
+  });
+  return data;
+};
+
 export const getAdminUsers = async (role) => {
   const params = role ? { role } : {};
   const { data } = await axiosInstance.get("/admin/users", { params });

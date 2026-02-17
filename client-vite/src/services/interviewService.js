@@ -27,7 +27,7 @@ export const getUserInterviews = async (userId, status) => {
   const { data } = await axiosInstance.get(`/interviews/user/${userId}`, { params });
   const list = Array.isArray(data) ? data : [];
   return list.map((inv) => ({
-    id: inv._id,
+    id: inv._id || inv.id,
     date: formatDate(inv.date),
     time: inv.time,
     status: inv.status,
@@ -38,6 +38,9 @@ export const getUserInterviews = async (userId, status) => {
     role: inv.role,
     company: inv.company,
     outcome: inv.outcome,
+    notes: inv.notes,
+    feedback: inv.feedback,
+    feedbackVisibleToCandidate: inv.feedbackVisibleToCandidate,
   }));
 };
 
