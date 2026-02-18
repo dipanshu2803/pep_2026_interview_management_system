@@ -9,14 +9,14 @@ const Profile = () => {
   const [skills, setSkills] = useState(DEFAULT_SKILLS);
   const [skillInput, setSkillInput] = useState("");
   const [profile, setProfile] = useState({
-    fullName: "Priya Sharma",
-    email: "priya.sharma@example.com",
-    phone: "+91 98765 43210",
-    linkedIn: "linkedin.com/in/priyasharma",
-    currentRole: "Software Engineer",
-    experience: "4 years",
-    preferredLocation: "Bangalore (Hybrid)",
-    bio: "Full-stack developer with experience in React and Node.js. Passionate about building scalable web applications.",
+    fullName: "",
+    email: "",
+    phone: "",
+    linkedIn: "",
+    currentRole: "",
+    experience: "",
+    preferredLocation: "",
+    bio: "",
   });
   const [preferences, setPreferences] = useState({
     emailNotifications: true,

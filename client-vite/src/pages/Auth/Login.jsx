@@ -57,7 +57,7 @@ const Login = () => {
       <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-8 space-y-6">
         <div className="text-center space-y-1">
           <h1 className="text-2xl font-semibold text-gray-900">
-            PEP 2026 Interview Management
+            HireTrack
           </h1>
           <p className="text-sm text-gray-500">Sign in with email & password</p>
         </div>
