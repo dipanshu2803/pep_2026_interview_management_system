@@ -1,4 +1,5 @@
 const Interview = require("../models/Interview");
+const { generateGoogleMeetLink } = require("../utils/meetLink");
 
 exports.getUserInterviews = async (req, res) => {
   try {
@@ -33,7 +34,17 @@ exports.getInterviewById = async (req, res) => {
 
 exports.createInterview = async (req, res) => {
   try {
-    const interview = await Interview.create({ ...req.body, user: req.body.userId });
+    const payload = { ...req.body, user: req.body.userId };
+    // When a candidate schedules, require admin approval; admin-created interviews stay scheduled
+    if (req.user && req.user.role === "candidate") {
+      payload.status = "pending_approval";
+    }
+    const mode = (payload.mode || "Online").toLowerCase();
+    if (mode === "online" && !payload.meetingLink) {
+      payload.meetingLink = generateGoogleMeetLink();
+      if (!payload.platform) payload.platform = "Google Meet";
+    }
+    const interview = await Interview.create(payload);
     res.status(201).json(interview);
   } catch (err) {
     res.status(500).json({ message: err.message || "Failed to create interview" });
@@ -42,12 +53,19 @@ exports.createInterview = async (req, res) => {
 
 exports.updateInterview = async (req, res) => {
   try {
+    const existing = await Interview.findById(req.params.id).lean();
+    if (!existing) return res.status(404).json({ message: "Interview not found" });
+    const update = { ...req.body };
+    const willBeOnline = (update.mode !== undefined ? update.mode : existing.mode || "Online").toString().toLowerCase() === "online";
+    if (willBeOnline && !existing.meetingLink && update.meetingLink === undefined) {
+      update.meetingLink = generateGoogleMeetLink();
+      if (update.platform === undefined) update.platform = "Google Meet";
+    }
     const interview = await Interview.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      update,
       { new: true }
     );
-    if (!interview) return res.status(404).json({ message: "Interview not found" });
     res.json(interview);
   } catch (err) {
     res.status(500).json({ message: err.message || "Failed to update interview" });

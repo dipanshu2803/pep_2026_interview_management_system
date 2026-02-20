@@ -4,9 +4,11 @@ import { getAdminInterviews, getAdminUsers } from "../../services/adminService";
 import { createInterview, updateInterview, statusToDisplay, formatDate } from "../../services/interviewService";
 
 const MODE_OPTIONS = ["Online", "On-site"];
+const DURATION_OPTIONS = [30, 45, 60, 90];
 
 const STATUS_OPTIONS = [
   "Scheduled",
+  "Pending approval",
   "Pending feedback",
   "Completed",
   "Cancelled",
@@ -16,6 +18,7 @@ const STATUS_OPTIONS = [
 
 const statusClasses = {
   Scheduled: "bg-blue-50 text-blue-700",
+  "Pending approval": "bg-violet-50 text-violet-700",
   "Pending feedback": "bg-amber-50 text-amber-700",
   Completed: "bg-emerald-50 text-emerald-700",
   Cancelled: "bg-red-50 text-red-700",
@@ -33,8 +36,10 @@ function mapServerInterview(interview) {
     company: interview.company,
     date: formatDate(interview.date),
     time: interview.time,
+    duration: interview.duration ?? 60,
     status: statusToDisplay[interview.status] || interview.status,
     mode: interview.mode || "Online",
+    meetingLink: interview.meetingLink,
     interviewer: interview.interviewer || "—",
     interviewerEmail: interview.interviewerEmail,
   };
@@ -48,6 +53,7 @@ const ManageInterviews = () => {
   const [saving, setSaving] = useState(false);
   const [statusFilter, setStatusFilter] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [editing, setEditing] = useState(null);
   const [isNew, setIsNew] = useState(false);
   const [cancelId, setCancelId] = useState(null);
@@ -76,13 +82,16 @@ const ManageInterviews = () => {
   }, []);
 
   const filteredInterviews = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
     return interviews.filter((i) => {
       if (statusFilter && i.status !== statusFilter) return false;
       if (roleFilter && !i.role.toLowerCase().includes(roleFilter.toLowerCase()))
         return false;
+      if (q && !(i.candidate || "").toLowerCase().includes(q) && !(i.company || "").toLowerCase().includes(q))
+        return false;
       return true;
     });
-  }, [interviews, statusFilter, roleFilter]);
+  }, [interviews, statusFilter, roleFilter, searchQuery]);
 
   const openNew = () => {
     setIsNew(true);
@@ -98,6 +107,7 @@ const ManageInterviews = () => {
       interviewerEmail: firstInterviewer?.email || "",
       date: "",
       time: "",
+      duration: 60,
       status: "Scheduled",
       mode: "Online",
       overrideConflict: false,
@@ -106,12 +116,16 @@ const ManageInterviews = () => {
 
   const openEdit = (row) => {
     setIsNew(false);
-    setEditing({ ...row, overrideConflict: false });
+    setEditing({ ...row, overrideConflict: false, meetingLink: row.meetingLink });
   };
 
   const saveEditing = async () => {
     if (!editing.role?.trim() || !editing.company?.trim() || !editing.date || !editing.time) {
       toast.error("Please fill role, company, date and time.");
+      return;
+    }
+    if (editing.isAccepting && (!editing.interviewer?.trim() || !editing.interviewerEmail?.trim())) {
+      toast.error("Please select an interviewer to accept this request.");
       return;
     }
     if (isNew && !editing.userId) {
@@ -139,6 +153,7 @@ const ManageInterviews = () => {
           company: editing.company,
           date: editing.date,
           time: editing.time,
+          duration: editing.duration ?? 60,
           mode: editing.mode || "Online",
           status: editing.status,
           interviewer: editing.interviewer,
@@ -151,12 +166,13 @@ const ManageInterviews = () => {
           company: editing.company,
           date: editing.date,
           time: editing.time,
+          duration: editing.duration ?? 60,
           mode: editing.mode,
           status: editing.status,
           interviewer: editing.interviewer,
           interviewerEmail: editing.interviewerEmail,
         });
-        toast.success("Interview updated.");
+        toast.success(editing.isAccepting ? "Interview accepted and scheduled." : "Interview updated.");
       }
       await loadData();
       setEditing(null);
@@ -205,7 +221,7 @@ const ManageInterviews = () => {
       )}
 
       {/* Summary cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
           <p className="text-xs font-medium text-gray-500 uppercase">
             Total interviews
@@ -224,6 +240,14 @@ const ManageInterviews = () => {
         </div>
         <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
           <p className="text-xs font-medium text-gray-500 uppercase">
+            Pending approval
+          </p>
+          <p className="mt-2 text-3xl font-semibold text-violet-600">
+            {interviews.filter((i) => i.status === "Pending approval").length}
+          </p>
+        </div>
+        <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+          <p className="text-xs font-medium text-gray-500 uppercase">
             Pending feedback
           </p>
           <p className="mt-2 text-3xl font-semibold text-amber-600">
@@ -238,7 +262,14 @@ const ManageInterviews = () => {
           <h3 className="text-sm font-semibold text-gray-900">
             Interview queue
           </h3>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 items-center">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search candidate or company..."
+              className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white min-w-[180px]"
+            />
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -284,6 +315,9 @@ const ManageInterviews = () => {
                   Date & time
                 </th>
                 <th className="px-4 py-2 text-xs font-medium text-gray-500">
+                  Duration
+                </th>
+                <th className="px-4 py-2 text-xs font-medium text-gray-500">
                   Mode
                 </th>
                 <th className="px-4 py-2 text-xs font-medium text-gray-500">
@@ -313,6 +347,9 @@ const ManageInterviews = () => {
                     {row.date} at {row.time}
                   </td>
                   <td className="px-4 py-2 text-xs text-gray-700">
+                    {row.duration ?? 60} min
+                  </td>
+                  <td className="px-4 py-2 text-xs text-gray-700">
                     {row.mode || "—"}
                   </td>
                   <td className="px-4 py-2 text-xs">
@@ -325,21 +362,50 @@ const ManageInterviews = () => {
                     </span>
                   </td>
                   <td className="px-4 py-2 text-xs">
-                    <button
-                      type="button"
-                      className="mr-2 text-green-700 hover:text-green-800"
-                      onClick={() => openEdit(row)}
-                    >
-                      Edit
-                    </button>
-                    {row.status !== "Cancelled" && (
-                      <button
-                        type="button"
-                        className="text-red-600 hover:text-red-800"
-                        onClick={() => setCancelId(row.id)}
-                      >
-                        Cancel
-                      </button>
+                    {row.status === "Pending approval" ? (
+                      <>
+                        <button
+                          type="button"
+                          className="mr-2 text-green-700 hover:text-green-800 font-medium"
+                          onClick={() => setEditing({ ...row, overrideConflict: false, meetingLink: row.meetingLink, status: "Scheduled", isAccepting: true })}
+                        >
+                          Assign & accept
+                        </button>
+                        <button
+                          type="button"
+                          className="mr-2 text-red-600 hover:text-red-800"
+                          onClick={async () => {
+                            try {
+                              await updateInterview(row.id, { status: "Cancelled" });
+                              toast.success("Interview request rejected.");
+                              await loadData();
+                            } catch (err) {
+                              toast.error(err.response?.data?.message || "Failed to reject.");
+                            }
+                          }}
+                        >
+                          Reject
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          className="mr-2 text-green-700 hover:text-green-800"
+                          onClick={() => openEdit(row)}
+                        >
+                          Edit
+                        </button>
+                        {row.status !== "Cancelled" && (
+                          <button
+                            type="button"
+                            className="text-red-600 hover:text-red-800"
+                            onClick={() => setCancelId(row.id)}
+                          >
+                            Cancel
+                          </button>
+                        )}
+                      </>
                     )}
                   </td>
                 </tr>
@@ -347,7 +413,7 @@ const ManageInterviews = () => {
               {filteredInterviews.length === 0 && (
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={9}
                     className="px-4 py-4 text-xs text-gray-500 text-center"
                   >
                     No interviews for this filter.
@@ -372,7 +438,7 @@ const ManageInterviews = () => {
           />
           <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg bg-white rounded-xl shadow-xl p-6 z-50 max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              {isNew ? "Schedule interview" : "Edit interview"}
+              {editing.isAccepting ? "Assign interviewer & accept request" : isNew ? "Schedule interview" : "Edit interview"}
             </h3>
             <div className="space-y-3 text-sm">
               <div>
@@ -482,6 +548,22 @@ const ManageInterviews = () => {
                     className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
                   />
                 </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Duration (min)
+                  </label>
+                  <select
+                    value={editing.duration ?? 60}
+                    onChange={(e) =>
+                      setEditing((prev) => ({ ...prev, duration: Number(e.target.value) }))
+                    }
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm bg-white"
+                  >
+                    {DURATION_OPTIONS.map((d) => (
+                      <option key={d} value={d}>{d} min</option>
+                    ))}
+                  </select>
+                </div>
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">
@@ -499,6 +581,34 @@ const ManageInterviews = () => {
                   ))}
                 </select>
               </div>
+              {editing.mode === "Online" && editing.meetingLink && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Google Meet link
+                  </label>
+                  <div className="flex gap-2">
+                    <a
+                      href={editing.meetingLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 min-w-0 rounded-lg border border-gray-200 px-3 py-2 text-sm text-blue-600 hover:underline truncate"
+                    >
+                      {editing.meetingLink}
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(editing.meetingLink);
+                        toast.success("Link copied to clipboard");
+                      }}
+                      className="shrink-0 px-3 py-2 rounded-lg border border-gray-200 bg-gray-50 text-gray-700 text-sm font-medium hover:bg-gray-100"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">Generated for online interviews. Candidate sees this in My Interviews.</p>
+                </div>
+              )}
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">
                   Status
@@ -559,7 +669,7 @@ const ManageInterviews = () => {
                 disabled={saving}
                 className="flex-1 py-2 rounded-lg bg-green-600 text-white font-medium text-sm hover:bg-green-700 disabled:opacity-60"
               >
-                {saving ? "Saving…" : "Save"}
+                {saving ? "Saving…" : editing.isAccepting ? "Accept & schedule" : "Save"}
               </button>
             </div>
             <p className="mt-3 text-xs text-gray-500">

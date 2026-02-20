@@ -7,10 +7,11 @@ const interviewSchema = new mongoose.Schema(
     company: { type: String, required: true, trim: true },
     date: { type: Date, required: true },
     time: { type: String, required: true },
+    duration: { type: Number, default: 60 }, // minutes
     mode: { type: String, enum: ["Online", "On-site"], default: "Online" },
     status: {
       type: String,
-      enum: ["scheduled", "completed", "pending", "cancelled", "selected", "rejected"],
+      enum: ["scheduled", "completed", "pending", "pending_approval", "cancelled", "selected", "rejected"],
       default: "scheduled",
     },
     meetingLink: { type: String, trim: true },

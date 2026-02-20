@@ -4,7 +4,7 @@ import { getStoredUser } from "../../services/authService";
 import { getUserInterviews } from "../../services/interviewService";
 
 const statusLabel = (s) =>
-  ({ scheduled: "Scheduled", completed: "Completed", selected: "Selected", rejected: "Rejected", cancelled: "Cancelled", pending: "Pending" }[s] || s);
+  ({ scheduled: "Scheduled", completed: "Completed", selected: "Selected", rejected: "Rejected", cancelled: "Cancelled", pending: "Pending", pending_approval: "Pending approval" }[s] || s);
 
 const statusStyles = {
   scheduled: "bg-blue-50 text-blue-700",
@@ -13,6 +13,7 @@ const statusStyles = {
   rejected: "bg-red-50 text-red-700",
   cancelled: "bg-amber-50 text-amber-700",
   pending: "bg-amber-50 text-amber-700",
+  pending_approval: "bg-violet-50 text-violet-700",
 };
 
 const modeLabel = (m) => (m === "Online" ? "Online" : m === "On-site" ? "On-site" : "Offline");
@@ -35,11 +36,12 @@ const MyInterviews = () => {
 
   const filtered =
     filter === "upcoming"
-      ? interviews.filter((i) => i.status === "scheduled")
+      ? interviews.filter((i) => i.status === "scheduled" || i.status === "pending_approval")
       : filter === "past"
         ? interviews.filter(
             (i) =>
               i.status !== "scheduled" &&
+              i.status !== "pending_approval" &&
               ["completed", "selected", "rejected", "cancelled", "pending"].includes(i.status)
           )
         : interviews;

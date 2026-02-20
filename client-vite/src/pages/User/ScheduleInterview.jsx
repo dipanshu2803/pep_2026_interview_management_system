@@ -4,12 +4,7 @@ import "react-calendar/dist/Calendar.css";
 import { toast } from "react-toastify";
 import { getStoredUser } from "../../services/authService";
 import { createInterview } from "../../services/interviewService";
-import {
-  MOCK_COMPANIES,
-  MOCK_INTERVIEWERS,
-  ROLES,
-  getAvailableSlots,
-} from "../../data/mockBooking";
+import { MOCK_COMPANIES, ROLES, getAvailableSlots } from "../../data/mockBooking";
 
 const ScheduleInterview = () => {
   const user = getStoredUser();
@@ -17,18 +12,12 @@ const ScheduleInterview = () => {
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({
     companyId: "",
-    interviewerId: "",
     role: "",
     date: null,
     time: "",
     notes: "",
   });
   const [confirmed, setConfirmed] = useState(false);
-
-  const interviewersForCompany = useMemo(() => {
-    if (!form.companyId) return [];
-    return MOCK_INTERVIEWERS.filter((i) => i.companyId === form.companyId);
-  }, [form.companyId]);
 
   const availableSlots = useMemo(() => {
     if (!form.date) return [];
@@ -38,7 +27,6 @@ const ScheduleInterview = () => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
-    if (name === "companyId") setForm((prev) => ({ ...prev, interviewerId: "" }));
   };
 
   const handleDateChange = (value) => {
@@ -46,7 +34,7 @@ const ScheduleInterview = () => {
   };
 
   const canProceed = () => {
-    if (step === 1) return form.companyId && form.interviewerId && form.role;
+    if (step === 1) return form.companyId && form.role;
     if (step === 2) return form.date;
     if (step === 3) return form.time;
     return false;
@@ -63,7 +51,6 @@ const ScheduleInterview = () => {
       return;
     }
     const companyName = MOCK_COMPANIES.find((c) => c.id === form.companyId)?.name || "";
-    const interviewerName = MOCK_INTERVIEWERS.find((i) => i.id === form.interviewerId)?.name || "";
     const dateObj = form.date instanceof Date ? form.date : new Date(form.date);
     const dateStr = dateObj.toISOString().slice(0, 10);
     setSubmitting(true);
@@ -76,7 +63,7 @@ const ScheduleInterview = () => {
         time: form.time,
         mode: "Online",
         status: "scheduled",
-        interviewer: interviewerName,
+        interviewer: "",
         interviewerEmail: "",
       });
       setConfirmed(true);
@@ -88,7 +75,6 @@ const ScheduleInterview = () => {
   };
 
   const companyName = MOCK_COMPANIES.find((c) => c.id === form.companyId)?.name || "";
-  const interviewerName = MOCK_INTERVIEWERS.find((i) => i.id === form.interviewerId)?.name || "";
   const dateStr = form.date
     ? (typeof form.date === "object" && form.date instanceof Date
         ? form.date
@@ -101,19 +87,19 @@ const ScheduleInterview = () => {
       <div className="space-y-6">
         <div className="bg-green-50 border border-green-200 rounded-xl p-8 text-center max-w-md mx-auto">
           <div className="text-5xl mb-3">✓</div>
-          <h3 className="text-xl font-semibold text-green-800">Booking confirmed</h3>
+          <h3 className="text-xl font-semibold text-green-800">Request submitted</h3>
           <p className="text-sm text-green-700 mt-2">
-            Your interview has been scheduled.
+            Your interview request has been sent. An admin will review and accept or reject it. You can check status under My Interviews.
           </p>
           <div className="mt-6 text-left bg-white/60 rounded-lg p-4 text-sm text-gray-800">
             <p><strong>Company:</strong> {companyName}</p>
-            <p><strong>Interviewer:</strong> {interviewerName}</p>
             <p><strong>Role:</strong> {form.role}</p>
             <p><strong>Date:</strong> {dateStr}</p>
             <p><strong>Time:</strong> {form.time}</p>
+            <p className="text-gray-500"><strong>Interviewer:</strong> To be assigned by admin</p>
           </div>
           <p className="text-xs text-green-700 mt-4">
-            A calendar invite and reminder will be sent to your email.
+            Once approved, the interview will appear as scheduled in My Interviews and you will get the meeting link.
           </p>
           <button
             type="button"
@@ -122,7 +108,6 @@ const ScheduleInterview = () => {
               setStep(1);
               setForm({
                 companyId: "",
-                interviewerId: "",
                 role: "",
                 date: null,
                 time: "",
@@ -143,7 +128,7 @@ const ScheduleInterview = () => {
       <div>
         <h2 className="text-2xl font-semibold text-gray-900">Book an interview</h2>
         <p className="text-sm text-gray-600">
-          Select company, interviewer, date & time. Only available slots are shown.
+          Select company, role, date & time. An admin will approve your request and assign an interviewer.
         </p>
       </div>
 
@@ -163,7 +148,7 @@ const ScheduleInterview = () => {
         {/* Step 1: Company, Interviewer, Role */}
         {step === 1 && (
           <div className="space-y-5">
-            <h3 className="text-lg font-semibold text-gray-900">Select company & interviewer</h3>
+            <h3 className="text-lg font-semibold text-gray-900">Select company & role</h3>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Company <span className="text-red-500">*</span>
@@ -178,24 +163,6 @@ const ScheduleInterview = () => {
                 <option value="">Select company</option>
                 {MOCK_COMPANIES.map((c) => (
                   <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Interviewer <span className="text-red-500">*</span>
-              </label>
-              <select
-                name="interviewerId"
-                value={form.interviewerId}
-                onChange={handleChange}
-                required
-                disabled={!form.companyId}
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-50"
-              >
-                <option value="">Select interviewer</option>
-                {interviewersForCompany.map((i) => (
-                  <option key={i.id} value={i.id}>{i.name} · {i.role}</option>
                 ))}
               </select>
             </div>
@@ -216,6 +183,9 @@ const ScheduleInterview = () => {
                 ))}
               </select>
             </div>
+            <p className="text-xs text-gray-500">
+              An interviewer will be assigned by admin when your request is approved.
+            </p>
           </div>
         )}
 
@@ -281,7 +251,7 @@ const ScheduleInterview = () => {
               />
             </div>
             <div className="bg-gray-50 rounded-lg p-4 text-sm text-gray-700">
-              <p><strong>Summary:</strong> {companyName} · {interviewerName} · {form.role}</p>
+              <p><strong>Summary:</strong> {companyName} · {form.role}</p>
               <p>{dateStr} at {form.time || "—"}</p>
             </div>
           </div>
